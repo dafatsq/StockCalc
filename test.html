@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Compounding Calculator</title>
+<style>
+  body { 
+    font-family: Arial, sans-serif; 
+    margin: 0; 
+    padding: 20px; 
+    background-color: #f4f4f4; 
+    display: flex;
+    justify-content: center;
+  }
+  .container { 
+    background: white; 
+    padding: 20px; 
+    border-radius: 8px; 
+    max-width: 25rem;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+  }
+  input, select, button { 
+    padding: 10px; 
+    margin: 10px 0px; 
+    border-radius: 5px; 
+    border: 1px solid #ddd; 
+    width: calc(100% - 22px); 
+  }
+  select {
+    max-width: 25%;
+    margin-right: 63%;
+  }
+  .container h2 { 
+    margin-top: 0; 
+    text-align: center; 
+  }
+  .container div { 
+    display: block;
+  }
+  label { 
+    margin-top: 10px; 
+  }
+  button { 
+    cursor: pointer; 
+    background-color: #4CAF50; 
+    color: white; 
+    padding: 10px; 
+    margin: 10px 0px; 
+    border-radius: 5px; 
+    border: 1px solid #ddd;
+    width: 100%!important;
+  }
+  button:hover { 
+    background-color: #45a049; 
+  }
+  #chartContainer { 
+    height: 370px; 
+    width: 100%; 
+    margin-top: 20px; 
+    display: none; /* Initially hide the chart container */
+  }
+  /* Table Styling */
+  .results-container {
+    display: flex;
+    flex-direction: column;
+  }
+  /* Hide the table container initially */
+  #tableContainer {
+    display: none;
+  }
+  /* Table styles */
+  #resultsTable {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 20px;
+  }
+  th, td {
+    border: 1px solid #ddd;
+  }
+  th, td {
+    padding: 8px;
+    text-align: center;
+  }
+  th {
+    background-color: #f2f2f2;
+  }
+
+  /* Responsive Layout */
+  @media (min-width: 768px) {
+    .results-container {
+      display: flex;
+      flex-direction: row;
+    }
+    .container {
+      flex: 1;
+    }
+    /* Show the table container on larger screens */
+    #tableContainer.visible {
+      display: block;
+      max-width: 20rem;
+      margin-left: 20px;
+    }
+  }
+  
+  @media (max-width: 767px) {
+    .results-container {
+      flex-direction: column;
+      align-items: center; /* Center items horizontally */
+    }
+    /* Show the table container on small screens */
+    #tableContainer.visible {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+    #resultsTable {
+      width: 90%; /* Adjust width as needed */
+      margin: 0 auto; /* Center the table */
+      margin-top: 20px;
+      margin-bottom: 40px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="results-container">
+  <div class="container">
+    <h2>Investment Compounding Calculator</h2>
+    <div>
+      <label for="frequency">Contribution Frequency:</label>
+      <select id="frequency" onchange="updateLabels()">
+        <option value="Yearly">Yearly</option>
+        <option value="Monthly">Monthly</option>
+      </select>
+      <label for="startingAmount">Starting Amount ($):</label>
+      <input type="number" id="startingAmount" value="20000">
+      <label for="contribution">Contribution ($):</label>
+      <input type="number" id="contribution" value="20000">
+      <label id="periodLabel" for="years">Investment Duration (Years):</label>
+      <input type="number" id="years" value="10">
+      <label id="rateLabel" for="rate">Return Rate (% per Year):</label>
+      <input type="number" id="rate" value="10">
+      <button onclick="calculate()">Calculate</button>
+    </div>
+    <div id="results"></div>
+    <canvas id="chartContainer"></canvas>
+  </div>
+
+  <!-- Table to display results wrapped in a container -->
+  <div id="tableContainer">
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th>Period</th>
+          <th>Deposit ($)</th>
+          <th>Gains ($)</th>
+          <th>Equity ($)</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody">
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  var chart; // Declare chart globally to check its existence later
+
+  function updateLabels() {
+    var frequency = document.getElementById('frequency').value;
+    document.getElementById('periodLabel').textContent = frequency === "Monthly" ? "Investment Duration (Months):" : "Investment Duration (Years):";
+    document.getElementById('rateLabel').textContent = frequency === "Monthly" ? "Return Rate (% per Month):" : "Return Rate (% per Year):";
+  }
+
+  function calculate() {
+    var frequency = document.getElementById('frequency').value;
+    var principal = parseFloat(document.getElementById('startingAmount').value);
+    var contribution = parseFloat(document.getElementById('contribution').value);
+    var periods = parseInt(document.getElementById('years').value);
+    var rate = parseFloat(document.getElementById('rate').value) / 100;
+    var labels = [], dataPrincipal = [], dataInterest = [], dataTotal = [];
+    var tableBody = document.getElementById('resultsBody');
+    tableBody.innerHTML = ""; // Clear previous results
+
+    var equity = principal * (1 + rate); // Initialize equity
+
+    // Adjust the arrays to start with the first period's adjusted equity
+    labels.push(frequency === "Monthly" ? "Month 1" : "Year 1");
+    dataPrincipal.push(principal);
+    dataInterest.push(equity - principal);
+    dataTotal.push(equity);
+
+    // Add first row to the table
+    addRowToTable(1, principal, equity - principal, equity);
+
+    for (var period = 2; period <= periods; period++) {
+      equity += contribution; // Add contribution
+      equity *= (1 + rate); // Apply compounding
+      var totalContributions = contribution * (period - 1); // Total contributions
+      var totalInterest = equity - (principal + totalContributions);
+
+      labels.push(frequency === "Monthly" ? "Month " + period : "Year " + period);
+      dataPrincipal.push(principal + totalContributions);
+      dataInterest.push(totalInterest);
+      dataTotal.push(equity);
+
+      // Add each period to the table
+      addRowToTable(period, principal + totalContributions, totalInterest, equity);
+    }
+
+    // Chart setup
+    var ctx = document.getElementById('chartContainer');
+    if (chart) {
+      chart.data.labels = labels;
+      chart.data.datasets[0].data = dataPrincipal;
+      chart.data.datasets[1].data = dataInterest;
+      chart.data.datasets[2].data = dataTotal;
+      chart.update();
+    } else {
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+              label: 'Deposit',
+              data: dataPrincipal,
+              borderColor: 'rgb(255, 99, 132)',
+              backgroundColor: 'rgba(255, 99, 132, 0.5)',
+            }, {
+              label: 'Gain',
+              data: dataInterest,
+              borderColor: 'rgb(54, 162, 235)',
+              backgroundColor: 'rgba(54, 162, 235, 0.5)',
+            }, {
+              label: 'Equity',
+              data: dataTotal,
+              borderColor: 'rgb(75, 192, 192)',
+              backgroundColor: 'rgba(75, 192, 192, 0.5)',
+            }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+    ctx.style.display = 'block'; // Display the chart container when data is ready
+    // Show the table by adding the 'visible' class to the container
+    document.getElementById('tableContainer').classList.add('visible');
+  }
+
+  function addRowToTable(period, deposit, gains, equity) {
+    var tableBody = document.getElementById('resultsBody');
+    var row = `<tr>
+      <td>${period}</td>
+      <td>${deposit.toFixed(2)}</td>
+      <td>${gains.toFixed(2)}</td>
+      <td>${equity.toFixed(2)}</td>
+    </tr>`;
+    tableBody.innerHTML += row;
+  }
+</script>
+</body>
+</html>
